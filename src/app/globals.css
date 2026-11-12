@@ -41,3 +41,9 @@
 .preview-credit{bottom:13px}
 .guide-story{font-size:14px;line-height:1.85;color:#e3e9e5;border-left:2px solid #d9b578;padding-left:14px}
 @media(max-width:760px){.manual-journey-label{font-size:10px;padding:0 3px}.panorama-placeholder .placeholder-tag{bottom:8px;left:8px;font-size:8px}.preview-credit{bottom:8px}}
+
+/* Functional Portuguese narration controls */
+.narration-button,.guide-speak{display:inline-flex;align-items:center;gap:7px;border:1px solid #b79960;background:#263a40;color:#f5d39b;border-radius:7px;padding:9px 12px;font-size:11px;font-weight:700}
+.narration-button:hover,.guide-speak:hover{background:#d9b578;color:#09212a}
+.guide-speak{margin-left:auto;padding:7px 10px;font-size:10px}
+@media(max-width:760px){.narration-button{padding:8px;font-size:10px}.control-row{gap:8px}.controls-left{flex-wrap:wrap}.manual-journey-label{display:none}}
