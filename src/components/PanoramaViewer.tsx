@@ -42,9 +42,10 @@ export function PanoramaViewer({ panoramaUrl }: { panoramaUrl?: string }) {
 
   if (!panoramaUrl) return (
     <div className="panorama-placeholder" aria-label="Área preparada para panorama real em 360 graus">
-      <div className="placeholder-sky" /><div className="placeholder-mountain"/><div className="placeholder-ocean"/><div className="placeholder-walk"/>
-      <div className="placeholder-message"><MousePointer2 size={22}/><strong>{error ? 'Não foi possível carregar a mídia 360°' : 'Seu primeiro panorama real começa aqui'}</strong><span>{error ? 'Confira a URL e as permissões CORS da imagem.' : 'Configure uma imagem 360° licenciada para liberar a exploração em todas as direções.'}</span></div>
-      <div className="placeholder-tag">PRÉVIA ILUSTRATIVA · NÃO É IMAGEM REAL DO LOCAL</div>
+      <div className="preview-real-photo"/>
+      <div className="placeholder-message"><MousePointer2 size={22}/><strong>{error ? 'Não foi possível carregar a mídia 360°' : 'Copacabana em fotografia real'}</strong><span>{error ? 'Confira a URL e as permissões CORS da imagem.' : 'Esta é uma fotografia panorâmica 2D. A exploração esférica 360° será ativada quando a mídia adequada estiver disponível.'}</span></div>
+      <a className="preview-credit" href="https://commons.wikimedia.org/wiki/File:Vista_Playa_Copacabana_A742250-Pano20241122.jpg" target="_blank" rel="noreferrer">Foto: Rjcastillo · CC BY 4.0 · recorte</a>
+      <div className="placeholder-tag">FOTOGRAFIA REAL · VISUALIZAÇÃO 2D · NÃO É 360°</div>
     </div>
   );
   return <div className="panorama-frame"><div ref={rootRef} className="panorama-view" aria-label="Visualizador panorâmico 360 graus"/>{error ? <div className="panorama-load-state">Não foi possível carregar o panorama. Verifique a URL e as permissões CORS.</div> : !ready ? <div className="panorama-load-state">Preparando exploração 360°…</div> : <div className="panorama-hint"><RotateCcw size={14}/> Arraste para olhar ao redor <Maximize2 size={14}/></div>}</div>;
