@@ -9,3 +9,12 @@
 .panel-button:hover{background:#26414b;border-color:#d9b578}
 .panorama-load-state{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:#0c2029;color:#f3eee1;font-size:14px;padding:24px}
 @media(max-width:760px){.journey-toolbar-actions{gap:9px}.panel-button span{display:none}.panel-button{padding:9px}.journey-layout.panel-collapsed .journey-main{padding:22px 15px}.journey-layout.panel-collapsed .scene-shell{height:66vh;min-height:390px}.journey-status{letter-spacing:.06em}}
+
+/* Real Copacabana photo, credited CC BY 4.0, intentionally NOT presented as 360 */
+.hero-real-photo{background:#173039 url("https://commons.wikimedia.org/wiki/Special:FilePath/Vista_Playa_Copacabana_A742250-Pano20241122.jpg?width=2560") center center / cover no-repeat}
+.hero-real-photo:before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(4,17,24,.03),rgba(4,17,24,.08) 60%,rgba(4,17,24,.36));pointer-events:none}
+.preview-real-photo{position:absolute;inset:0;background:#173039 url("https://commons.wikimedia.org/wiki/Special:FilePath/Vista_Playa_Copacabana_A742250-Pano20241122.jpg?width=2560") center / cover no-repeat}
+.preview-real-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(2,13,20,.46))}
+.preview-credit{position:absolute;bottom:13px;right:14px;z-index:4;font-size:10px;color:#fff;background:#07151cbb;padding:7px 9px;border-radius:5px}
+.disclaimer a{color:#d9b578;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:760px){.preview-credit{font-size:9px;bottom:7px;right:7px}.hero-real-photo{background-position:center}}
