@@ -44,7 +44,7 @@ export function PanoramaViewer({ panoramaUrl }: { panoramaUrl?: string }) {
     <div className="panorama-placeholder" aria-label="Área preparada para panorama real em 360 graus">
       <div className="preview-real-photo"/>
       <div className="placeholder-message"><MousePointer2 size={22}/><strong>{error ? 'Não foi possível carregar a mídia 360°' : 'Copacabana em fotografia real'}</strong><span>{error ? 'Confira a URL e as permissões CORS da imagem.' : 'Esta é uma fotografia panorâmica 2D. A exploração esférica 360° será ativada quando a mídia adequada estiver disponível.'}</span></div>
-      <a className="preview-credit" href="https://commons.wikimedia.org/wiki/File:Vista_Playa_Copacabana_A742250-Pano20241122.jpg" target="_blank" rel="noreferrer">Foto: Rjcastillo · CC BY 4.0 · recorte</a>
+      <a className="preview-credit" href="https://commons.wikimedia.org/wiki/File:Copacabana_by_Diego_Baravelli.jpg" target="_blank" rel="noreferrer">Foto: Diego Baravelli · CC BY-SA 4.0 · recorte</a>
       <div className="placeholder-tag">FOTOGRAFIA REAL · VISUALIZAÇÃO 2D · NÃO É 360°</div>
     </div>
   );
