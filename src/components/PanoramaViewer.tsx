@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Maximize2, MousePointer2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Maximize2, MousePointer2, RotateCcw } from 'lucide-react';
 
 interface PannellumViewer { destroy?: () => void; setYaw?: (yaw: number) => void; }
 interface PannellumGlobal { viewer: (element: HTMLElement, options: Record<string, unknown>) => PannellumViewer; }
 
 declare global { interface Window { pannellum?: PannellumGlobal } }
 
-export function PanoramaViewer({ panoramaUrl }: { panoramaUrl?: string }) {
+export function PanoramaViewer({ panoramaUrl, photoUrl, credit, creditUrl, onNext, onPrevious, canNext, canPrevious }: { panoramaUrl?: string; photoUrl?: string; credit?: string; creditUrl?: string; onNext?: () => void; onPrevious?: () => void; canNext?: boolean; canPrevious?: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<PannellumViewer | null>(null);
   const [error, setError] = useState(false);
@@ -42,9 +42,9 @@ export function PanoramaViewer({ panoramaUrl }: { panoramaUrl?: string }) {
 
   if (!panoramaUrl) return (
     <div className="panorama-placeholder" aria-label="Área preparada para panorama real em 360 graus">
-      <div className="preview-real-photo"/>
-      <div className="placeholder-message"><MousePointer2 size={22}/><strong>{error ? 'Não foi possível carregar a mídia 360°' : 'Copacabana em fotografia real'}</strong><span>{error ? 'Confira a URL e as permissões CORS da imagem.' : 'Esta é uma fotografia panorâmica 2D. A exploração esférica 360° será ativada quando a mídia adequada estiver disponível.'}</span></div>
-      <a className="preview-credit" href="https://commons.wikimedia.org/wiki/File:Copacabana_by_Diego_Baravelli.jpg" target="_blank" rel="noreferrer">Foto: Diego Baravelli · CC BY-SA 4.0 · recorte</a>
+      <div className="preview-real-photo" style={photoUrl ? { backgroundImage: `url("${photoUrl}")` } : undefined}/>
+      <div className="placeholder-message"><MousePointer2 size={22}/><strong>{error ? 'Não foi possível carregar a mídia 360°' : 'Explore as paisagens de Copacabana'}</strong><span>{error ? 'Confira a URL e as permissões CORS da imagem.' : 'Navegue pelos cinco pontos reais do roteiro. Estas imagens são fotografias 2D; a visão esférica 360° será ativada com mídia compatível.'}</span></div>
+      <a className="preview-credit" href={creditUrl || "https://commons.wikimedia.org"} target="_blank" rel="noreferrer">Foto: {credit || "Wikimedia Commons"} · fonte e licença · recorte</a><div className="scene-waypoints"><button disabled={!canPrevious} onClick={onPrevious} aria-label="Cena anterior"><ArrowLeft size={17}/> Anterior</button><button disabled={!canNext} onClick={onNext} aria-label="Próxima cena">Próxima cena <ArrowRight size={17}/></button></div>
       <div className="placeholder-tag">FOTOGRAFIA REAL · VISUALIZAÇÃO 2D · NÃO É 360°</div>
     </div>
   );
