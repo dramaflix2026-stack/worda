@@ -19,46 +19,61 @@ export default function Home() {
   const [voiceAvailable, setVoiceAvailable] = useState(false);
   const [narrationMode, setNarrationMode] = useState<'neural' | 'browser'>('browser');
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlsRef = useRef<Map<string, string>>(new Map());
+  const playbackRequestRef = useRef(0);
+  const [audioLoading, setAudioLoading] = useState(false);
   const stop = stops[stopIndex];
   useEffect(() => {
     setVoiceAvailable(typeof window !== 'undefined' && ('speechSynthesis' in window || 'Audio' in window));
-    return () => { audioRef.current?.pause(); if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
+    return () => { audioRef.current?.pause(); for (const url of audioUrlsRef.current.values()) URL.revokeObjectURL(url); if ('speechSynthesis' in window) window.speechSynthesis.cancel(); };
   }, []);
   useEffect(() => {
+    playbackRequestRef.current++;
     audioRef.current?.pause(); audioRef.current = null;
+    setAudioLoading(false);
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setSpeaking(false); setNarrationMode('browser');
   }, [stopIndex]);
   async function toggleNarration() {
-    if (speaking) {
+    if (speaking || audioLoading) {
+      playbackRequestRef.current++;
       audioRef.current?.pause();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      setSpeaking(false); return;
+      setSpeaking(false); setAudioLoading(false); return;
     }
-    // Generated neural audio lives in public/audio/copacabana/{stop.id}.mp3.
-    // If no file is present yet, keep the existing free browser voice as a fallback.
-    const url = `/audio/copacabana/${stop.id}.mp3`;
+    const requestId = ++playbackRequestRef.current;
+    setAudioLoading(true);
     try {
-      const response = await fetch(url, { method: 'HEAD' });
-      if (response.ok && response.headers.get('content-type')?.includes('audio')) {
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => setSpeaking(false);
-        audio.onerror = () => setSpeaking(false);
-        await audio.play();
-        setNarrationMode('neural'); setSpeaking(true); return;
+      let url = audioUrlsRef.current.get(stop.id);
+      if (!url) {
+        const response = await fetch(`/api/narration?chapter=${encodeURIComponent(stop.id)}`);
+        if (!response.ok || !response.headers.get('content-type')?.includes('audio')) throw new Error('Neural audio unavailable');
+        const blob = await response.blob();
+        if (requestId !== playbackRequestRef.current) return;
+        url = URL.createObjectURL(blob);
+        audioUrlsRef.current.set(stop.id, url);
       }
-    } catch { /* audio not generated yet */ }
-    if (!('speechSynthesis' in window)) return;
-    const utterance = new SpeechSynthesisUtterance(stop.story);
-    utterance.lang = 'pt-BR'; utterance.rate = 1; utterance.pitch = 1;
-    const voices = window.speechSynthesis.getVoices();
-    const brazilianVoice = voices.find(v => v.lang.toLowerCase() === 'pt-br');
-    if (brazilianVoice) utterance.voice = brazilianVoice;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-    setNarrationMode('browser'); setSpeaking(true);
+      if (requestId !== playbackRequestRef.current) return;
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => setSpeaking(false);
+      audio.onerror = () => setSpeaking(false);
+      await audio.play();
+      if (requestId !== playbackRequestRef.current) { audio.pause(); return; }
+      setNarrationMode('neural'); setSpeaking(true);
+    } catch {
+      if (requestId !== playbackRequestRef.current || !('speechSynthesis' in window)) return;
+      const utterance = new SpeechSynthesisUtterance(stop.story);
+      utterance.lang = 'pt-BR'; utterance.rate = 1; utterance.pitch = 1;
+      const brazilianVoice = window.speechSynthesis.getVoices().find(v => v.lang.toLowerCase() === 'pt-br');
+      if (brazilianVoice) utterance.voice = brazilianVoice;
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+      setNarrationMode('browser'); setSpeaking(true);
+    } finally {
+      if (requestId === playbackRequestRef.current) setAudioLoading(false);
+    }
   }
   const panorama = stop.panorama || process.env.NEXT_PUBLIC_COPA_PANORAMA_URL || undefined;
   useEffect(() => {
@@ -67,8 +82,8 @@ export default function Home() {
   useEffect(() => { try { localStorage.setItem('worlda:copacabana:v1', String(stopIndex)); } catch {} }, [stopIndex]);
   const progress = useMemo(() => Math.round((stop.minute / totalMinutes) * 100), [stop.minute]);
 
-  const next = () => { audioRef.current?.pause(); if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel(); setSpeaking(false); setStopIndex(i => Math.min(i + 1, stops.length - 1)); setShowPrompt(false); };
-  const previous = () => { audioRef.current?.pause(); if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel(); setSpeaking(false); setStopIndex(i => Math.max(i - 1, 0)); setShowPrompt(false); };
+  const next = () => { playbackRequestRef.current++; setAudioLoading(false); audioRef.current?.pause(); if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel(); setSpeaking(false); setStopIndex(i => Math.min(i + 1, stops.length - 1)); setShowPrompt(false); };
+  const previous = () => { playbackRequestRef.current++; setAudioLoading(false); audioRef.current?.pause(); if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel(); setSpeaking(false); setStopIndex(i => Math.max(i - 1, 0)); setShowPrompt(false); };
   function askGuide() {
     if (!question.trim()) return;
     setShowPrompt(true);
@@ -79,7 +94,7 @@ export default function Home() {
     {view === 'discover' ? <>
       <section className="discover-layout"><div className="discover-copy"><div className="eyebrow"><span className="eyebrow-line"/> SUA PRIMEIRA VIAGEM COMEÇA AQUI</div><div className="overline">BRASIL <span>·</span> RIO DE JANEIRO</div><h1>O mundo é grande.<br/><em>Viva cada lugar.</em></h1><p>Não é apenas sobre ver uma paisagem. É sobre estar presente, ouvir suas histórias e descobrir caminhos no seu próprio ritmo.</p><div className="hero-buttons"><button className="button-primary" onClick={() => { setView('journey'); }}><Play size={17} fill="currentColor"/> Começar minha viagem <ArrowRight size={17}/></button><span className="quiet-label"><Clock3 size={17}/> Experiência de 15 min</span></div><div className="hero-features"><span><Compass size={17}/> Exploração livre</span><span><Headphones size={17}/> Guia interativo</span><span><Waves size={17}/> Fotografia real*</span></div></div><div className="hero-art hero-real-photo" role="img" aria-label="Fotografia panorâmica real de Copacabana, Rio de Janeiro"><div className="art-caption"><MapPin size={17}/><div><small>DESTINO EM DESTAQUE</small><strong>Copacabana, Rio de Janeiro</strong></div><span className="art-number">01 / 01</span></div></div></section>
       <section className="experience-section"><div><div className="eyebrow">DESCOBRIR</div><h2>Uma viagem que se adapta a você.</h2></div><div className="experience-cards"><div className="experience-card"><Compass/><strong>Escolha seu caminho</strong><p>Pare, avance e explore os pontos disponíveis no ritmo que quiser.</p></div><div className="experience-card"><AudioLines/><strong>Conheça as histórias</strong><p>Histórias em português, com leitura em voz alta pelo navegador.</p></div><div className="experience-card"><Sparkles/><strong>Pergunte ao guia</strong><p>O espaço da IA já está desenhado para a próxima integração.</p></div></div></section><p className="disclaimer">Fotografia de Copacabana: <a href="https://commons.wikimedia.org/wiki/File:Copacabana_by_Diego_Baravelli.jpg" target="_blank" rel="noreferrer">Diego Baravelli / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · recorte para composição visual. Fotografia panorâmica convencional, não é imagem esférica 360°. A exploração 360° requer mídia própria ou licenciada.</p>
-    </> : <section className={`journey-layout ${panelOpen ? "" : "panel-collapsed"}`}><div className="journey-main"><div className="journey-toolbar"><button className="icon-text" onClick={() => setView('discover')}><ArrowLeft size={16}/> Voltar ao destino</button><div className="journey-toolbar-actions"><span className="journey-status"><span/> COPACABANA · EXPLORAÇÃO</span><button className="panel-button" onClick={() => setPanelOpen(v => !v)} aria-label={panelOpen ? "Ocultar painel do guia" : "Mostrar painel do guia"}>{panelOpen ? <PanelRightClose size={18}/> : <PanelRightOpen size={18}/>}<span>{panelOpen ? "Ampliar cenário" : "Abrir guia"}</span></button></div></div><div className="scene-shell"><PanoramaViewer key={stop.id} panoramaUrl={panorama} photoUrl={stop.photo} credit={stop.credit} creditUrl={stop.creditUrl} onNext={next} onPrevious={previous} canNext={stopIndex < stops.length - 1} canPrevious={stopIndex > 0}/><div className="scene-gradient"><div className="scene-location"><MapPin size={15}/> RIO DE JANEIRO, BRASIL</div><h2>{stop.title}</h2><p>{stop.subtitle}</p></div></div><div className="journey-controls"><div className="chapter-progress"><span>CAPÍTULO {String(stopIndex + 1).padStart(2,'0')} / {String(stops.length).padStart(2,'0')}</span><span>{stop.minute.toString().padStart(2,'0')}:00 / 15:00 · MARCADORES DO ROTEIRO</span></div><div className="progress-track"><div style={{width: `${progress}%`}}/></div><div className="control-row"><div className="controls-left"><button className="round-control" aria-label="Capítulo anterior" onClick={previous} disabled={stopIndex === 0}><ArrowLeft size={18}/></button><span className="manual-journey-label">Avanço manual</span>{voiceAvailable && <button className="narration-button" onClick={toggleNarration} aria-label={speaking ? "Parar narração" : "Ouvir história do capítulo"}>{speaking ? <Pause size={16}/> : <Volume2 size={16}/>} {speaking ? "Parar áudio" : "Ouvir história"}</button>}<button className="round-control" aria-label="Próximo capítulo" onClick={next} disabled={stopIndex === stops.length - 1}><ArrowRight size={18}/></button></div><div className="controls-right"><button className={`mode-toggle ${mode === 'guided' ? 'is-active' : ''}`} onClick={() => setMode('guided')}>Guiado</button><button className={`mode-toggle ${mode === 'free' ? 'is-active' : ''}`} onClick={() => setMode('free')}>Explorar</button></div></div></div></div>{panelOpen && <aside className="guide-panel"><div className="guide-header"><div className="guide-icon"><Sparkles size={20}/></div><div><strong>Seu guia de viagem</strong><span>Histórias e descobertas</span></div><span className="guide-indicator">CONCEITO</span></div><div className="guide-body"><div className="guide-intro"><AudioLines size={18}/><span>História deste capítulo {speaking ? (narrationMode === "neural" ? "· voz neural" : "· voz do navegador") : ""}</span>{voiceAvailable && <button className="guide-speak" onClick={toggleNarration}>{speaking ? <VolumeX size={15}/> : <Volume2 size={15}/>} {speaking ? "Parar" : "Ouvir"}</button>}</div><p className="guide-story">{stop.story}</p>{mode === 'free' && <div className="guide-note">Modo explorar: a navegação é manual. Quando uma mídia 360° licenciada for configurada, você poderá olhar em todas as direções.</div>}<div className="suggestion-heading">SUA JORNADA</div><div className="timeline">{stops.map((s, i) => <button key={s.id} className={`timeline-stop ${i === stopIndex ? 'selected' : ''}`} onClick={() => { setStopIndex(i); setShowPrompt(false); }}><span className="timeline-dot">{i < stopIndex ? <Check size={13}/> : String(i + 1).padStart(2,'0')}</span><span><strong>{s.title}</strong><small>{String(s.minute).padStart(2,'0')}:00 · {s.subtitle}</small></span><ChevronRight size={15}/></button>)}</div></div><div className="guide-footer"><span className="suggestion-heading">PERGUNTE AO GUIA</span><div className="question-bar"><input value={question} onChange={e => { setQuestion(e.target.value); setShowPrompt(false); }} onKeyDown={e => { if (e.key === 'Enter') askGuide(); }} placeholder="O que gostaria de descobrir?" aria-label="Pergunta para o guia"/><button onClick={askGuide} aria-label="Enviar pergunta"><Send size={17}/></button></div>{showPrompt && <div className="guide-note">Pergunta de demonstração (não enviada à IA): “{question}”. A IA ainda não está conectada; nenhuma resposta foi gerada.</div>}<button className="suggested-question" onClick={() => { setQuestion(stop.prompt); setShowPrompt(false); }}>{stop.prompt} <ArrowRight size={13}/></button></div></aside>}</section>}
+    </> : <section className={`journey-layout ${panelOpen ? "" : "panel-collapsed"}`}><div className="journey-main"><div className="journey-toolbar"><button className="icon-text" onClick={() => setView('discover')}><ArrowLeft size={16}/> Voltar ao destino</button><div className="journey-toolbar-actions"><span className="journey-status"><span/> COPACABANA · EXPLORAÇÃO</span><button className="panel-button" onClick={() => setPanelOpen(v => !v)} aria-label={panelOpen ? "Ocultar painel do guia" : "Mostrar painel do guia"}>{panelOpen ? <PanelRightClose size={18}/> : <PanelRightOpen size={18}/>}<span>{panelOpen ? "Ampliar cenário" : "Abrir guia"}</span></button></div></div><div className="scene-shell"><PanoramaViewer key={stop.id} panoramaUrl={panorama} photoUrl={stop.photo} credit={stop.credit} creditUrl={stop.creditUrl} onNext={next} onPrevious={previous} canNext={stopIndex < stops.length - 1} canPrevious={stopIndex > 0}/><div className="scene-gradient"><div className="scene-location"><MapPin size={15}/> RIO DE JANEIRO, BRASIL</div><h2>{stop.title}</h2><p>{stop.subtitle}</p></div></div><div className="journey-controls"><div className="chapter-progress"><span>CAPÍTULO {String(stopIndex + 1).padStart(2,'0')} / {String(stops.length).padStart(2,'0')}</span><span>{stop.minute.toString().padStart(2,'0')}:00 / 15:00 · MARCADORES DO ROTEIRO</span></div><div className="progress-track"><div style={{width: `${progress}%`}}/></div><div className="control-row"><div className="controls-left"><button className="round-control" aria-label="Capítulo anterior" onClick={previous} disabled={stopIndex === 0}><ArrowLeft size={18}/></button><span className="manual-journey-label">Avanço manual</span>{voiceAvailable && <button className="narration-button" onClick={toggleNarration} aria-label={speaking ? "Parar narração" : "Ouvir história do capítulo"}>{speaking || audioLoading ? <Pause size={16}/> : <Volume2 size={16}/>} {audioLoading ? "Preparando áudio…" : speaking ? "Parar áudio" : "Ouvir história"}</button>}<button className="round-control" aria-label="Próximo capítulo" onClick={next} disabled={stopIndex === stops.length - 1}><ArrowRight size={18}/></button></div><div className="controls-right"><button className={`mode-toggle ${mode === 'guided' ? 'is-active' : ''}`} onClick={() => setMode('guided')}>Guiado</button><button className={`mode-toggle ${mode === 'free' ? 'is-active' : ''}`} onClick={() => setMode('free')}>Explorar</button></div></div></div></div>{panelOpen && <aside className="guide-panel"><div className="guide-header"><div className="guide-icon"><Sparkles size={20}/></div><div><strong>Seu guia de viagem</strong><span>Histórias e descobertas</span></div><span className="guide-indicator">CONCEITO</span></div><div className="guide-body"><div className="guide-intro"><AudioLines size={18}/><span>História deste capítulo {speaking ? (narrationMode === "neural" ? "· voz neural" : "· voz do navegador") : ""}</span>{voiceAvailable && <button className="guide-speak" onClick={toggleNarration}>{speaking || audioLoading ? <VolumeX size={15}/> : <Volume2 size={15}/>} {audioLoading ? "Preparando…" : speaking ? "Parar" : "Ouvir"}</button>}</div><p className="guide-story">{stop.story}</p>{mode === 'free' && <div className="guide-note">Modo explorar: a navegação é manual. Quando uma mídia 360° licenciada for configurada, você poderá olhar em todas as direções.</div>}<div className="suggestion-heading">SUA JORNADA</div><div className="timeline">{stops.map((s, i) => <button key={s.id} className={`timeline-stop ${i === stopIndex ? 'selected' : ''}`} onClick={() => { setStopIndex(i); setShowPrompt(false); }}><span className="timeline-dot">{i < stopIndex ? <Check size={13}/> : String(i + 1).padStart(2,'0')}</span><span><strong>{s.title}</strong><small>{String(s.minute).padStart(2,'0')}:00 · {s.subtitle}</small></span><ChevronRight size={15}/></button>)}</div></div><div className="guide-footer"><span className="suggestion-heading">PERGUNTE AO GUIA</span><div className="question-bar"><input value={question} onChange={e => { setQuestion(e.target.value); setShowPrompt(false); }} onKeyDown={e => { if (e.key === 'Enter') askGuide(); }} placeholder="O que gostaria de descobrir?" aria-label="Pergunta para o guia"/><button onClick={askGuide} aria-label="Enviar pergunta"><Send size={17}/></button></div>{showPrompt && <div className="guide-note">Pergunta de demonstração (não enviada à IA): “{question}”. A IA ainda não está conectada; nenhuma resposta foi gerada.</div>}<button className="suggested-question" onClick={() => { setQuestion(stop.prompt); setShowPrompt(false); }}>{stop.prompt} <ArrowRight size={13}/></button></div></aside>}</section>}
     <footer className="site-footer"><span>WORLDA · O MUNDO MAIS PERTO</span><span>Protótipo de exploração · Sem mídia proprietária de terceiros</span></footer>
   </main>;
 }
