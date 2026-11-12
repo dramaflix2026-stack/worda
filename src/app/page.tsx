@@ -7,6 +7,7 @@ import { PanoramaViewer } from '@/components/PanoramaViewer';
 import { stops, totalMinutes } from '@/data/copacabana';
 
 type View = 'discover' | 'journey';
+const NARRATION_VERSION = 'cinematic-v2';
 
 export default function Home() {
   const [view, setView] = useState<View>('discover');
@@ -44,17 +45,18 @@ export default function Home() {
     const requestId = ++playbackRequestRef.current;
     setAudioLoading(true);
     try {
-      let url = audioUrlsRef.current.get(stop.id);
+      let url = audioUrlsRef.current.get(`${NARRATION_VERSION}:${stop.id}`);
       if (!url) {
-        const response = await fetch(`/api/narration?chapter=${encodeURIComponent(stop.id)}`);
+        const response = await fetch(`/api/narration?chapter=${encodeURIComponent(stop.id)}&v=${NARRATION_VERSION}`);
         if (!response.ok || !response.headers.get('content-type')?.includes('audio')) throw new Error('Neural audio unavailable');
         const blob = await response.blob();
         if (requestId !== playbackRequestRef.current) return;
         url = URL.createObjectURL(blob);
-        audioUrlsRef.current.set(stop.id, url);
+        audioUrlsRef.current.set(`${NARRATION_VERSION}:${stop.id}`, url);
       }
       if (requestId !== playbackRequestRef.current) return;
       const audio = new Audio(url);
+      audio.volume = 0.78;
       audioRef.current = audio;
       audio.onended = () => setSpeaking(false);
       audio.onerror = () => setSpeaking(false);
