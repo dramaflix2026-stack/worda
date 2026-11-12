@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 const cache = new Map<string, Buffer>();
 const pending = new Map<string, Promise<Buffer>>();
 const MAX_CHAPTERS = 5;
+const NARRATION_VERSION = 'cinematic-v2';
 
 async function synthesize(id: string, story: string): Promise<Buffer> {
   const key = process.env.OPENAI_API_KEY;
@@ -18,10 +19,11 @@ async function synthesize(id: string, story: string): Promise<Buffer> {
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: process.env.WORLDA_TTS_MODEL || 'gpt-4o-mini-tts',
-      voice: 'nova',
+      voice: 'onyx',
+      speed: 0.96,
       input: story,
       response_format: 'mp3',
-      instructions: 'Narre em português brasileiro, como um guia turístico experiente. Voz humana, acolhedora e expressiva, com pausas naturais e ritmo conversacional.'
+      instructions: 'Você é um guia de viagem brasileiro experiente, falando com uma pessoa ao seu lado, sem atuar como locutor de propaganda. Fale português brasileiro com pronúncia clara e íntima, voz masculina serena, suave, sem gritar, sem ênfase exagerada, sem explosões de volume. Use pausas naturais nas vírgulas e pontos, ritmo calmo e conversacional. Evite soar artificial, teatral ou excessivamente entusiasmado.'
     }),
     cache: 'no-store'
   });
@@ -39,18 +41,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Neural narration unavailable' }, { status: 503 });
   }
   try {
-    let audio = cache.get(chapter.id);
+    const cacheKey = `${NARRATION_VERSION}:${chapter.id}`;
+    let audio = cache.get(cacheKey);
     if (!audio) {
-      let work = pending.get(chapter.id);
+      let work = pending.get(cacheKey);
       if (!work) {
         work = synthesize(chapter.id, chapter.story);
-        pending.set(chapter.id, work);
+        pending.set(cacheKey, work);
       }
       try {
         audio = await work;
-        cache.set(chapter.id, audio);
+        cache.set(cacheKey, audio);
       } finally {
-        pending.delete(chapter.id);
+        pending.delete(cacheKey);
       }
     }
     return new NextResponse(new Uint8Array(audio), {
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'audio/mpeg',
         'Content-Length': String(audio.length),
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+        'X-Narration-Version': NARRATION_VERSION,
         'X-Content-Type-Options': 'nosniff'
       }
     });
