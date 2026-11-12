@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Maximize2, MousePointer2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Maximize2, RotateCcw } from 'lucide-react';
 
 interface PannellumViewer { destroy?: () => void; setYaw?: (yaw: number) => void; }
 interface PannellumGlobal { viewer: (element: HTMLElement, options: Record<string, unknown>) => PannellumViewer; }
@@ -43,9 +43,8 @@ export function PanoramaViewer({ panoramaUrl, photoUrl, credit, creditUrl, onNex
   if (!panoramaUrl) return (
     <div className="panorama-placeholder" aria-label="Área preparada para panorama real em 360 graus">
       <div className="preview-real-photo" style={photoUrl ? { backgroundImage: `url("${photoUrl}")` } : undefined}/>
-      <div className="placeholder-message"><MousePointer2 size={22}/><strong>{error ? 'Não foi possível carregar a mídia 360°' : 'Explore as paisagens de Copacabana'}</strong><span>{error ? 'Confira a URL e as permissões CORS da imagem.' : 'Navegue pelos cinco pontos reais do roteiro. Estas imagens são fotografias 2D; a visão esférica 360° será ativada com mídia compatível.'}</span></div>
       <a className="preview-credit" href={creditUrl || "https://commons.wikimedia.org"} target="_blank" rel="noreferrer">Foto: {credit || "Wikimedia Commons"} · fonte e licença · recorte</a><div className="scene-waypoints"><button disabled={!canPrevious} onClick={onPrevious} aria-label="Cena anterior"><ArrowLeft size={17}/> Anterior</button><button disabled={!canNext} onClick={onNext} aria-label="Próxima cena">Próxima cena <ArrowRight size={17}/></button></div>
-      <div className="placeholder-tag">FOTOGRAFIA REAL · VISUALIZAÇÃO 2D · NÃO É 360°</div>
+      <div className="placeholder-tag">CENA FOTOGRÁFICA · 2D</div>
     </div>
   );
   return <div className="panorama-frame"><div ref={rootRef} className="panorama-view" aria-label="Visualizador panorâmico 360 graus"/>{error ? <div className="panorama-load-state">Não foi possível carregar o panorama. Verifique a URL e as permissões CORS.</div> : !ready ? <div className="panorama-load-state">Preparando exploração 360°…</div> : <div className="panorama-hint"><RotateCcw size={14}/> Arraste para olhar ao redor <Maximize2 size={14}/></div>}</div>;
