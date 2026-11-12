@@ -19,7 +19,7 @@ export default function Home() {
   const [voiceAvailable, setVoiceAvailable] = useState(false);
   const stop = stops[stopIndex];
   useEffect(() => { setVoiceAvailable(typeof window !== 'undefined' && 'speechSynthesis' in window); return () => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }; }, []);
-  useEffect(() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }, [stopIndex]);
+  useEffect(() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); setSpeaking(false); }, [stopIndex]);
   function toggleNarration() {
     if (!('speechSynthesis' in window)) return;
     if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return; }
